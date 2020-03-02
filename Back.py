@@ -51,13 +51,13 @@ class Pawn(Piece):
 
     def ValidMove(self, Tiles):
         self.Horizontal_Movement, self.Vertical_Movement = GetMovement(self.Tile, Tiles[-1])
+        DestinyOcuppied = OcuppiedTile(Tiles[-1])
+        Kill = (self.IsMovementDiagonal() and DestinyOcuppied )
+
         if not self.ValidVerticalMovement():
             return False
 
-        DestinyTile = Tiles[-1]
-        Kill = (self.IsMovementDiagonal() and IsEnemyInside(DestinyTile, self.Color))
-
-        if Kill or (self.Horizontal_Movement == 0 and not Kill and not OcuppiedTile(DestinyTile)):
+        if Kill or (self.Horizontal_Movement == 0 and not Kill and not DestinyOcuppied):
             if self.StartingPosition:
                 self.StartingPosition = False
                 self.AllowedMovement = 1 if self.Color is White else -1
@@ -72,8 +72,7 @@ class Horse(Piece):
         if not (abs(Horizontal_Movement) == 1 and abs(Vertical_Movement) == 2 or abs(Horizontal_Movement) == 2 and abs(Vertical_Movement) == 1):
             return False
         Ocuppied = OcuppiedTile(Tiles[-1])
-        LastTile = Tiles[-1]
-        return not Ocuppied or IsEnemyInside(LastTile, self.Color)
+        return not Ocuppied or CanKill(Ocuppied)
 
 class Bishop(Piece):
     def __init__(self, Color, StartingTile):
@@ -149,12 +148,12 @@ def DrawAllPieces(Skip = "Optional Skip Argument"):
 def OcuppiedTile(Tile):
     for Sprite in SpriteGroup:
         if Sprite.Tile == Tile:
-            return True
+            return Sprite
     return False
 
 def CheckTrajectory(Tiles):
     TileLength = len(Tiles) - 1
-    LastTileIsOcuppied = False
+    LastTile = False
     for Tile in Tiles:
         if OcuppiedTile(Tile):
             return False
@@ -195,12 +194,8 @@ def CreateTilePath(Piece, Horizontal_Movement, Vertical_Movement):
 
     return Tiles
 
-def IsEnemyInside(Tile, MovingPieceColor):
-    return True if OcuppiedTile(Tile) and GetPieceInsideTile(Tile).Color != MovingPieceColor else False
-
-def KillIfPossible(EnemyTile):
-    if EnemyTile and IsKillLegal(EnemyTile):
-        EnemyTile.Kill()
+def IsEnemyInside(Piece, MovingPieceColor):
+    return True if Piece.Color != MovingPieceColor else False
 
 def Update(Dragged):
     if Dragged is not None:
@@ -243,16 +238,11 @@ def GetTile(Mouse_Pos):
     return Column + str(Row)
 
 
-<<<<<<< HEAD
 def InitializeBoard():
-    Positions = [[Pawn, ["A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2"], ["A7", "B7", "C7", "D7", "E7", "F7", "G7", "H7"]], [Horse, ["B1", "G1"], ["B8", "G8"]], [Tower, ["A1", "H1"], ["A8", "H8"]], [Bishop, ["C1", "F1"], ["C8", "F8"]], [King, ["E1"], ["E8"]], [Queen, ["D1"], ["D8"]]]
-=======
-def InitializeBoard(ChangeBoard = False):            #REMOVE THE OPTIONAL ARGS
-    if not ChangeBoard:
+    if not Debug:
         Positions = [[Pawn, ["A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2"], ["A7", "B7", "C7", "D7", "E7", "F7", "G7", "H7"]], [Horse, ["B1", "G1"], ["B8", "G8"]], [Tower, ["A1", "H1"], ["A8", "H8"]], [Bishop, ["C1", "F1"], ["C8", "F8"]], [King, ["E1"], ["E8"]], [Queen, ["D1"], ["D8"]]]
     else:
-        Positions = ChangeBoard
->>>>>>> Added some testing features and fixed some bugs
+        Positions = [[Pawn, ["A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2"], ["A7", "B7", "C7", "D7", "E7", "F7", "G5", "H7"]], [Horse, ["B1", "G1"], ["B8", "G8"]], [Tower, ["A1", "G7"], ["A8", "H8"]], [Bishop, ["C1", "F1"], ["C8", ]], [King, ["E1"], ["E8"]], [Queen, ["D1"], ["D8"]]]
 
     for Position in Positions:
         Piece = Position[0]
@@ -310,7 +300,6 @@ def FinishGame():
                     ResetPieces()
                     Main()
 
-<<<<<<< HEAD
 def CheckMate_Helper(Pieces, King_Tile):
     global Threat
     for Piece in Pieces:
@@ -320,8 +309,9 @@ def CheckMate_Helper(Pieces, King_Tile):
             return True
 
 def CheckMate():
-    King, EnemyPieces = (WhiteKing, BlackPieces) if KingInCheck is White else (BlackKing, WhitePieces)
-    PossibleTiles = King.GetAllPossibleMoves()
+    CheckedKing = GetCheckedKing()
+    EnemyPieces = BlackPieces if CheckedKing.Color is White else WhitePieces
+    PossibleTiles = CheckedKing.GetAllPossibleMoves()
     for Tile in PossibleTiles:
         if not CheckMate_Helper(EnemyPieces, Tile):
             return False
@@ -332,120 +322,48 @@ def CheckMate():
             return False
     return True
 
+def GetCheckedKing():
+    return WhiteKing if WhiteKing.Check else BlackKing
+
 def CanKill(EnemyPiece):
     Group = WhitePieces if EnemyPiece.Color is White else BlackPieces
-=======
-def CanKingEscape(King, PossibleMoves):
-    CurrentPosition = King.Tile
-    Escape = False
-    for Move in PossibleMoves:
-        King.Tile = Move
-        if not Check():
-            Escape = True
-            break
-    King.Tile = CurrentPosition
-    return Escape
-
-def CheckMate():
-    CheckedKing = GetCheckedKing()
-    EnemyPieces = BlackPieces if CheckedKing.Color is White else WhitePieces
-    PossibleTiles = CheckedKing.GetAllPossibleMoves()
-    if CanKingEscape(CheckedKing, PossibleTiles):
-        return False
-    Group = WhitePieces if EnemyPieces is BlackPieces else BlackPieces
-    IsCheckMate = True
-    for Piece in Group:
-        TilePath = CreateTilePath(Piece, *GetMovement(Piece.Tile, Threat.Tile))
-        PreviousTile = Piece.Tile
-        if TilePath and Piece.ValidMove(TilePath) and IsKillLegal(Threat):
-            Piece.Tile = Threat.Tile
-            InCheck = Check()
-            Piece.Tile = PreviousTile
-            if not InCheck:
-                IsCheckMate = False
-                break
-    return IsCheckMate
-
-def IsKillLegal(EnemyPiece):
-    Group = WhitePieces if EnemyPiece.Color is White else BlackPieces               #Rework
->>>>>>> Added some testing features and fixed some bugs
     EnemyPiece.remove(Group)
-    if GetCheckedKing() is Turn:
+    if KingInCheck is Turn:
         if Check():
             EnemyPiece.add(Group)
             return False
     return True
 
-def GetCheckedKing():
-    return WhiteKing if WhiteKing.Check else BlackKing                 #Best Practice would be returning an exception if there wasn't a checked King
-
-def CurrentlyInCheck():
-    return True if WhiteKing.Check or BlackKing.Check else False
-
-def BothKingsInCheck():
-    return True if WhiteKing.Check and BlackKing.Check else False
-
 def IsCheckValid():
-    if BothKingsInCheck():
-        WhiteKing.Check = False
-        BlackKing.Check = False
-        return False
-    CheckedKingColor = GetCheckedKing().Color
-    print(CheckedKingColor)
-    if CheckedKingColor is Turn:                                      #Rework 
-        if LastTileIsOcuppied and IsEnemyInside(LastTile, CheckedKingColor):
-            if not IsKillLegal(LastTileIsOcuppied):
+    KingInCheck = GetCheckedKing()
+    if KingInCheck is Turn:
+        if LastTile and IsEnemyInside(LastTile, KingInCheck):
+            if not CanKill(LastTile):
                 return False
         else:
             if Check():
                 return False
     return True
 
-def HandleLastTile(LastTile, MovingPieceColor):
-    LastTileIsOcuppied = OcuppiedTile(LastTile) if LastTile else None
-    EnemyTile = GetPieceInsideTile(LastTile) if IsEnemyInside(LastTile, MovingPieceColor) else False
-    return LastTileIsOcuppied, EnemyTile
-
-def Check_Helper(Pieces, King):
-    global Threat                     #Rework
-    for Piece in Pieces:
-        TilePath = CreateTilePath(Piece, *GetMovement(Piece.Tile, King.Tile)) #Rework
-        if TilePath and Piece.ValidMove(TilePath) and IsKillLegal(King):
-            Threat = Piece
-            King.Check = True
-            return True
-
 def Check():
-<<<<<<< HEAD
-    global KingInCheck
     if CheckMate_Helper(BlackPieces, WhiteKing.Tile):
-        KingInCheck = White
+        WhiteKing.Check = True
         return True
     if CheckMate_Helper(WhitePieces, BlackKing.Tile):
-        KingInCheck = Black
+        BlackKing.Check = True
         return True
-    KingsInCheck = None
     return False
-=======
-    return (Check_Helper(BlackPieces, WhiteKing) or Check_Helper(WhitePieces, BlackKing))
->>>>>>> Added some testing features and fixed some bugs
 
-def GetPieceInsideTile(Tile):
-    for Sprite in SpriteGroup:
-        if Sprite.Tile == Tile:
-            return Sprite
-    raise ValueError("GetPieceInsideTile: Couldn't find the Enemy")
 
 def StartGame():
     pygame.init()
     screen.blit(Board, BoardRect)
-    InitializeBoard([[King, ["D4"], ["H8"]], [Tower, ["B7", "C6"], []]])
+    InitializeBoard()
     GetKings()
 
-<<<<<<< HEAD
 def HandleCheck():
     if Check():
-        if not IsCheckValid(KingInCheck):
+        if not IsCheckValid():
             return False
         elif CheckMate():
             FinishGame()
@@ -453,64 +371,11 @@ def HandleCheck():
             print("Check")
 
     return True
-=======
-def WaitUntilInput():
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:
-                    return
-
-def Testing():
-    Position1 = [[Pawn, ["A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2"], ["A7", "B7", "C7", "D7", "E7", "F7", "G5", "H7"]], [Horse, ["B1", "G1"], ["B8", "G4"]], [Tower, ["A1", "G8"], ["A8", "H8"]], [Bishop, ["C1", "F1"], ["C8"]], [King, ["E1"], ["E8"]], [Queen, ["D1"], ["D8"]]]
-
-    Position2 = [[Pawn, ["A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2"], ["A7", "B7", "C7", "D7", "E7", "F7", "G7", "H7"]], [Horse, ["B1", "G1"], ["B8", "G8"]], [Tower, ["A1", "H1"], ["A8", "H8"]], [Bishop, ["C1", "F1"], ["C8", "F8"]], [King, ["E1"], ["E8"]], [Queen, ["D1"], ["D8"]]]
-
-    Position3 = [[Pawn, ["A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2"], ["A7", "B7", "C7", "D7", "E7", "F7", "G5", "H7"]], [Horse, ["B1", "G1"], ["B8", "G4"]], [Tower, ["A1", "G8"], ["A8", "H6"]], [Bishop, ["C1", "F1"], ["C8"]], [King, ["E1"], ["E8"]], [Queen, ["D1"], ["D8"]]]
-
-    Position4 = [[Pawn, ["A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2"], ["A7", "B7", "C7", "D7", "E5", "F7", "G5", "H7"]], [Horse, ["B1", "G1"], ["B8", "G4"]], [Tower, ["A1", "G8"], ["A8", "H8"]], [Bishop, ["C1", "F1"], ["C8"]], [King, ["E1"], ["E8"]], [Queen, ["H5"], ["D8"]]]
-
-    Position5 = [[King, ["D4"], ["H8"]], [Tower, ["B7", "B8"], []]]
-
-    AllCheckMates = [Position1, Position2, Position3, Position4, Position5]
-    CorrectResults = [False, False, True, True, True]
-    Index = 0
-    AllPassed = True
-    Show = False
-    for CheckMateSetup in AllCheckMates:
-        #pygame.init()
-        screen.blit(Board, BoardRect)
-        InitializeBoard(CheckMateSetup)
-        GetKings()
-        Check()
-        if CheckMate() == CorrectResults[Index]:
-            print("[+] Success With CheckMateSetup {}".format(Index))
-        else:
-            print("[-] Error With CheckMateSetup {}".format(Index))
-            AllPassed = False
-        Index += 1
-        if Show:
-            WaitUntilInput()
-        ResetPieces()
-
-    return AllPassed
->>>>>>> Added some testing features and fixed some bugs
 
 def Main():
-    if Debug:
-        if Testing():
-            print("[+] All Tests Passed")
-        else:
-            print("[-] One or More Tests Failed")
-        return True
-
     StartGame()
     Dragged = None
-<<<<<<< HEAD
     global LastTile
-=======
-    global LastTileIsOcuppied
->>>>>>> Added some testing features and fixed some bugs
 
     while True:
         for event in pygame.event.get():
@@ -526,11 +391,10 @@ def Main():
                     OriginalTile = Dragged.Tile
                     DestinyTile = GetTile((event.pos[0] - 20, event.pos[1] - 40))
                     TilePath = CreateTilePath(Dragged, *GetMovement(Dragged.Tile, DestinyTile))
-                    LastTile = TilePath[-1] if TilePath else None
-                    LastTileIsOcuppied, EnemyTile = HandleLastTile(LastTile, Dragged.Color)
-                    if TilePath and Dragged.ValidMove(TilePath) and (not LastTileIsOcuppied or EnemyTile):
+                    LastTile = OcuppiedTile(TilePath[-1]) if TilePath else None
+                    EnemyTile = LastTile if LastTile and IsEnemyInside(LastTile, Dragged.Color) else False
+                    if TilePath and Dragged.ValidMove(TilePath) and (not LastTile or EnemyTile):
                         Dragged.Tile = DestinyTile
-<<<<<<< HEAD
                         Dragged.Draw()
                         if not HandleCheck():
                                 InvalidMove()
@@ -540,27 +404,6 @@ def Main():
                                 LastTile.Kill()
                             ChangeTurn()
                             PrintMovement(Dragged.PieceName, OriginalTile, DestinyTile, Turn)
-=======
-                        Dragged.Draw()                                                    #Pawn when in starting Tile can jump over other pieces
-                        if Check():
-                            if not IsCheckValid():    #Improve this bit
-                                InvalidMove()
-                                Dragged.Tile = OriginalTile
-                                Dragged.Draw()                  #Can Probaly do this way better
-                                Dragged = None
-                                continue
-                            elif CheckMate():
-                                FinishGame()
-                            else:
-                                print("Check")
-                        else:
-                            if CurrentlyInCheck():
-                                GetCheckedKing().Check = False
-                        KillIfPossible()
-                        Dragged.Draw()
-                        ChangeTurn()
-                        PrintMovement(Dragged.PieceName, OriginalTile, DestinyTile, Turn)
->>>>>>> Added some testing features and fixed some bugs
                     else:
                         InvalidMove()
                     Dragged.Draw()
@@ -580,18 +423,12 @@ Column_Letters = "ABCDEFGH"
 White = "White"
 Black = "Black"
 Turn = White
-<<<<<<< HEAD
 KingInCheck = None
 LastTile = None
 Threat = None
-=======
 
-Debug = False
-LastTileIsOcuppied = None
-Threat = None
-IsCheckMate = False
->>>>>>> Added some testing features and fixed some bugs
 
+Debug = True
 MakeTiles()
 
 if __name__ == "__main__":
