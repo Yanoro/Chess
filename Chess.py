@@ -1,9 +1,9 @@
 from ChessPieces import *
 import itertools
-import sys #REMOVE
+import TestVariables
+
 
 Debug = True
-LastTileIsOcuppied = None
 IsCheckMate = False
 WhiteKing = None
 BlackKing = None
@@ -14,31 +14,6 @@ def CreateTile(Piece, Horizontal_Movement, Vertical_Movement):
     Tile = Column + Row
     return Tile
 
-def CreateTilePath(Piece, Horizontal_Movement, Vertical_Movement):
-    if Vertical_Movement < 0:
-        V_Movement = -1
-    else:
-        V_Movement = 1
-    if Horizontal_Movement < 0:
-        H_Movement = -1
-    else:
-        H_Movement = 1
-
-    Tiles = []
-    Current_Column = ord(Piece.Tile[0]) - ord("A")
-    Current_Row = int(Piece.Tile[1])
-    Last_Column = ord(Piece.Tile[0]) - ord("A")
-    Last_Row = Piece.Tile[1]
-
-    for Row, Column in itertools.zip_longest(range(Current_Row + V_Movement, Current_Row + Vertical_Movement + V_Movement, V_Movement), range(Current_Column + H_Movement, Current_Column + Horizontal_Movement + H_Movement, H_Movement)):
-        if Column is not None:
-            Last_Column = Column
-        if Row is not None:
-            Last_Row = Row
-        Tiles.append(Column_Letters[Last_Column] + str(Last_Row))
-
-    return Tiles
-
 def Update(Dragged):
     if Dragged is not None:
         pos = pygame.mouse.get_pos()
@@ -47,8 +22,8 @@ def Update(Dragged):
         DrawAllPieces(Dragged)
         screen.blit(Dragged.SpriteImage, (pos[0] - 30, pos[1] - 40))
 
-def PrintMovement(PieceName, OriginalTile, DestinyTile, CurrentTurn):
-    print("{}: {} to {}".format(PieceName, OriginalTile, DestinyTile))
+def PrintMovement(Piece, OriginalTile, DestinyTile, CurrentTurn):
+    print("{} {}: {} to {}".format(Piece.Color, Piece.PieceName, OriginalTile, DestinyTile))
     print("{} Turn".format(CurrentTurn))
 
 def ClosestToZero(List):
@@ -71,11 +46,12 @@ def GetTile(Mouse_Pos):
     Column = Column_Letters[ClosestToZero(Placeholder_Columns)]
     return Column + str(Row)
 
-def InitializeBoard(ChangeBoard = False):            #REMOVE THE OPTIONAL ARGS
+def InitializeBoard(ChangeBoard = False):
     if not ChangeBoard:
         Positions = [[Pawn, ["A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2"], ["A7", "B7", "C7", "D7", "E7", "F7", "G7", "H7"]], [Horse, ["B1", "G1"], ["B8", "G8"]], [Tower, ["A1", "H1"], ["A8", "H8"]], [Bishop, ["C1", "F1"], ["C8", "F8"]], [King, ["E1"], ["E8"]], [Queen, ["D1"], ["D8"]]]
     else:
         Positions = ChangeBoard
+
     for Position in Positions:
         Piece = Position[0]
         for WhiteTiles in Position[1]:
@@ -90,9 +66,13 @@ def ResetPieces():
     for Sprite in SpriteGroup:
         Sprite.Kill()
 
-def ChangeTurn():
+def NextTurn():
     global Turn
     Turn = Black if Turn is White else White
+
+def SetTurn(NewTurn):
+    global Turn
+    Turn = NewTurn
 
 def GetKings():
     global WhiteKing
@@ -121,17 +101,18 @@ def FinishGame():
 def CheckAllPiecesPossibleMovements(MovingPiece, DestinyTile, Group):
     PreviousTile = MovingPiece.Tile
     MovingPiece.Tile = DestinyTile
+    CheckedKing = GetCheckedKing()
     IsCheck = True
     for Piece in Group:
         PossibleMoves = Piece.GetPossibleMoves()
         if PossibleMoves:
-            print(PossibleMoves)
             for Move in PossibleMoves:
-                TilePath = CreateTilePath(Piece, *GetMovement(Piece.Tile, Move))
+                TilePath = CreateTilePath(Piece, Move)
                 LastTile = TilePath[-1]
-                if TilePath and Piece.ValidMove(TilePath) and IsLastTileLegal(LastTile, Piece.Color):
-                    if not Check(Piece, Move):
-                        print(Move)
+                if TilePath and Piece.ValidMove(TilePath) and IsTileLegal(LastTile, Piece.Color):
+                    Check(Piece, Move)
+                    if not CheckedKing.Check:
+                        CheckedKing.Check = True
                         IsCheck = False
                         break
     MovingPiece.Tile = PreviousTile
@@ -140,7 +121,7 @@ def CheckAllPiecesPossibleMovements(MovingPiece, DestinyTile, Group):
 def CheckMate(MovingPiece, DestinyTile):
     if not CurrentlyInCheck():
         return False
-    Group = BlackPieces if Turn is White else WhitePieces #Can be turned into a function
+    Group = BlackPieces if GetCheckedKing().Color is Black else WhitePieces
     return CheckAllPiecesPossibleMovements(MovingPiece, DestinyTile, Group)
 
 def IsKillLegal(EnemyPiece):
@@ -162,27 +143,47 @@ def BothKingsInCheck():
     return True if WhiteKing.Check and BlackKing.Check else False
 
 def IsCheckMovementValid(MovingPiece, DestinyTile):
-    if BothKingsInCheck():
-        WhiteKing.Check = False
-        BlackKing.Check = False
-        return False
-    if GetCheckedKing().Color == Turn and Check(MovingPiece, DestinyTile): #Can prob remove CheckedKingColor
+ #   if BothKingsInCheck():
+ #       WhiteKing.Check = False
+ #       BlackKing.Check = False
+ #       return False
+    if Check(MovingPiece, DestinyTile) and GetCheckedKing().Color == MovingPiece.Color:
         return False
     return True
 
-def IsLastTileLegal(LastTile, MovingPieceColor):
-    LastTileIsOcuppied = OcuppiedTile(LastTile) if LastTile else None
-    if LastTileIsOcuppied:
-        if not IsEnemyInside(LastTile, MovingPieceColor):
-            return False
-    return True
+def CreateTilePath(Piece, DestinyTile):
+    Horizontal_Movement, Vertical_Movement = GetMovement(Piece.Tile, DestinyTile)
+    if Vertical_Movement < 0:
+        V_Movement = -1
+    else:
+        V_Movement = 1
+    if Horizontal_Movement < 0:
+        H_Movement = -1
+    else:
+        H_Movement = 1
+
+    Tiles = []
+    Current_Column = ord(Piece.Tile[0]) - ord("A")
+    Current_Row = int(Piece.Tile[1])
+    Last_Column = ord(Piece.Tile[0]) - ord("A")
+    Last_Row = Piece.Tile[1]
+
+    for Row, Column in itertools.zip_longest(range(Current_Row + V_Movement, Current_Row + Vertical_Movement + V_Movement, V_Movement), range(Current_Column + H_Movement, Current_Column + Horizontal_Movement + H_Movement, H_Movement)):
+        if Column is not None:
+            Last_Column = Column
+        if Row is not None:
+            Last_Row = Row
+        Tiles.append(Column_Letters[Last_Column] + str(Last_Row))
+
+    return Tiles
 
 def Check_Helper(Pieces, King):
     for Piece in Pieces:
-        TilePath = CreateTilePath(Piece, *GetMovement(Piece.Tile, King.Tile)) #Rework
+        TilePath = CreateTilePath(Piece, King.Tile)
         if TilePath and Piece.ValidMove(TilePath):
             King.Check = True
             return True
+    King.Check = False
     return False
 
 def Check(MovingPiece, DestinyTile):
@@ -204,12 +205,13 @@ def Check(MovingPiece, DestinyTile):
 def StartGame():
     pygame.init()
     screen.blit(Board, BoardRect)
-    InitializeBoard()
+    InitializeBoard(TestVariables.LastTest1)
     GetKings()
+    SetTurn(White)
 
 def IsMovementLegal(MovingPiece, OriginalTile, DestinyTile, TilePath):
     LastTile = TilePath[-1] if TilePath else None
-    LastTileIsLegal = IsLastTileLegal(LastTile, MovingPiece.Color)
+    LastTileIsLegal = IsTileLegal(LastTile, MovingPiece.Color)
     if TilePath and MovingPiece.ValidMove(TilePath) and LastTileIsLegal:
         if Check(MovingPiece, DestinyTile):
             if not IsCheckMovementValid(MovingPiece, DestinyTile):
@@ -226,8 +228,6 @@ def IsMovementLegal(MovingPiece, OriginalTile, DestinyTile, TilePath):
 def Main():
     StartGame()
     MovingPiece = None
-    global LastTileIsOcuppied
-
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -241,13 +241,13 @@ def Main():
                 if MovingPiece is not None:
                     OriginalTile = MovingPiece.Tile
                     DestinyTile = GetTile((event.pos[0] - 20, event.pos[1] - 40))
-                    TilePath = CreateTilePath(MovingPiece, *GetMovement(MovingPiece.Tile, DestinyTile))  #Could probably remove the need for the GetMovement Call
+                    TilePath = CreateTilePath(MovingPiece, DestinyTile)
                     if IsMovementLegal(MovingPiece, OriginalTile, DestinyTile, TilePath):
                         if IsEnemyInside(DestinyTile, MovingPiece.Color):
                             GetPieceInsideTile(DestinyTile).Kill()
-                        ChangeTurn()
+                        NextTurn()
                         MovingPiece.Move(DestinyTile)   #Remember to replace other cases of this
-                        PrintMovement(MovingPiece.PieceName, OriginalTile, DestinyTile, Turn)
+                        PrintMovement(MovingPiece, OriginalTile, DestinyTile, Turn)
                     else:
                         InvalidMove()
                     MovingPiece.Draw()

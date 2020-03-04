@@ -13,6 +13,13 @@ White = "White"
 Black = "Black"
 Turn = White
 
+def IsTileLegal(LastTile, MovingPieceColor):
+    LastTileIsOcuppied = OcuppiedTile(LastTile) if LastTile else None
+    if LastTileIsOcuppied:
+        if not IsEnemyInside(LastTile, MovingPieceColor):
+            return False
+    return True
+
 def GetSurroundingTiles(Tile):
         UpperRow = str(int(Tile[1]) + 1)
         CurrentRow = Tile[1]
@@ -146,11 +153,8 @@ class Piece(pygame.sprite.Sprite):
             return None
 
     def IsTileStillValid(self, Tile):
-        try:
-            Column = Tile[0]
-            Row = int(Tile[1])
-        except:                                      #RemoveThisTryBlock
-            return False                                            #Doesn't take into account situations where the tile is ocuppied by an enemy
+        Column = Tile[0]
+        Row = int(Tile[1])
         return ord(Column) >= ord("A") and ord(Column) <= ord("H") and Row >= 1 and Row <= 8
 
     def Move(self, DestinyTile):
@@ -188,9 +192,14 @@ class Pawn(Piece):
         CurrentColumn, CurrentRow = self.GetCurrentColumnAndRow()
         OneTileMove = 1 if self.Color is White else -1
         CurrentRow = int(CurrentRow)
-        PossibleMovements = [CurrentColumn + str(CurrentRow + OneTileMove)]
+        UpperTile = CurrentColumn + str(CurrentRow + OneTileMove)
+        if self.IsTileStillValid(UpperTile) and not OcuppiedTile(UpperTile):
+            PossibleMovements.append(UpperTile)
+
         if self.IsInitialMovement():
-            PossibleMovements.append(CurrentColumn + str(CurrentRow + self.AllowedMovement))
+            InitialMovement = CurrentColumn + str(CurrentRow + self.AllowedMovement)
+            if self.IsTileStillValid(InitialMovement) and not OcuppiedTile(InitialMovement):
+                PossibleMovements.append(InitialMovement)
 
         DiagonalLeftTile, DiagonalRightTile = self.GetDiagonalTiles()
 
@@ -244,7 +253,7 @@ class Horse(Piece):
             Column = chr(ord(CurrentColumn) + Movement[0])
             Row =  str(int(CurrentRow) + Movement[1])
             Tile = Column + Row
-            if self.IsTileStillValid(Tile) and (not OcuppiedTile(Tile) or IsEnemyInside(Tile, self.Color)):
+            if "-" not in Tile and self.IsTileStillValid(Tile) and IsTileLegal(Tile, self.Color):
                 PossibleMovements.append(Tile)
         return PossibleMovements
 
@@ -252,9 +261,8 @@ class Horse(Piece):
         Horizontal_Movement, Vertical_Movement = GetMovement(self.Tile, Tiles[-1])
         if not (abs(Horizontal_Movement) == 1 and abs(Vertical_Movement) == 2 or abs(Horizontal_Movement) == 2 and abs(Vertical_Movement) == 1):
             return False
-        Ocuppied = OcuppiedTile(Tiles[-1])
         LastTile = Tiles[-1]
-        return not Ocuppied or IsEnemyInside(LastTile, self.Color)
+        return IsTileLegal(LastTile, self.Color)
 
 class Bishop(Piece):
     def __init__(self, Color, StartingTile):
@@ -290,7 +298,7 @@ class Queen(Piece):
         VerticalAndHorizontalMovements = self.GetAllVerticalAndHorizontalPossibleMovements()
         DiagonalMovements = self.GetAllDiagonalPossibleMovements()
         if DiagonalMovements and VerticalAndHorizontalMovements:
-            return VerticalAndHorizontalMovements + DiagonalMovements       #IMPROVE
+            return VerticalAndHorizontalMovements + DiagonalMovements
         elif DiagonalMovements:
             return DiagonalMovements
         return VerticalAndHorizontalMovements
@@ -310,7 +318,7 @@ class King(Piece):
         SurroundingTiles = GetSurroundingTiles(self.Tile)
         PossibleTiles = []
         for Tile in SurroundingTiles:
-            if self.IsTileStillValid(Tile) and (not OcuppiedTile(Tile) or IsEnemyInside(Tile, self.Color)):       #The Not OcuppiedTile... Part is used several times changeit Later to A function
+            if self.IsTileStillValid(Tile) and IsTileLegal(Tile, self.Color):
                 PossibleTiles.append(Tile)
         return PossibleTiles
 

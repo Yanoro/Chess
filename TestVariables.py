@@ -22,6 +22,10 @@ MovementTest = [[Pawn, ["A4", "B2", "C2", "D2", "D3", "F2", "G3", "H3"], ["A7", 
 
 TowerCheckMate = [[Tower, ["A3"], []], [Pawn, [], ["F7", "G7", "H7"]], [King, ["A2"], ["G8"]]]
 
+LastTest1 = [[Pawn, ["D5", "E3", "F2", "G2"], ["A5", "B6", "F5", "H5"]], [Tower, [], ["C8"]], [Horse, ["D2", "A3"], ["E5"]], [Bishop, [], ["A4", "G5"]], [King, ["E2"], ["D6"]]]
+
+LastTest2 = [[Pawn, ["D5", "E3", "F2", "G2"], ["A5", "B6", "F5", "H5"]], [Tower, [], ["C8"]], [Horse, ["D2", "B5"], ["E5"]], [Bishop, [], ["A4", "G5"]], [King, ["E2"], ["D6"]]]
+
 AllCheckMates = [Position1, Position2, Position3, Position4, Position5, Position6, Position7,  TowerCheckMate]
 
 PossibleTests1 = [[Pawn, ["E2"], ["D3", "F3"]]]
