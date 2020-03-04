@@ -1,6 +1,6 @@
 from ChessPieces import *
 import itertools
-import TestVariables
+
 
 
 Debug = True
@@ -205,7 +205,7 @@ def Check(MovingPiece, DestinyTile):
 def StartGame():
     pygame.init()
     screen.blit(Board, BoardRect)
-    InitializeBoard(TestVariables.LastTest1)
+    InitializeBoard()
     GetKings()
     SetTurn(White)
 
