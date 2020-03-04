@@ -1,8 +1,6 @@
 from ChessPieces import *
 import itertools
 
-
-
 Debug = True
 IsCheckMate = False
 WhiteKing = None
@@ -233,10 +231,14 @@ def Main():
             if event.type == pygame.QUIT:
                 pygame.quit();
             if event.type == pygame.MOUSEBUTTONDOWN:
-                for Sprite in SpriteGroup:
-                    if Sprite.Hitbox.collidepoint(event.pos) and Sprite.Color == Turn:
-                        MovingPiece = Sprite
-                        break;
+                if pygame.mouse.get_pressed()[2] == True and MovingPiece is not None:
+                    MovingPiece.Draw()
+                    MovingPiece = None
+                else:
+                    for Sprite in SpriteGroup:
+                        if Sprite.Hitbox.collidepoint(event.pos) and Sprite.Color == Turn:
+                            MovingPiece = Sprite
+                            break;
             elif event.type == pygame.MOUSEBUTTONUP:
                 if MovingPiece is not None:
                     OriginalTile = MovingPiece.Tile
@@ -251,7 +253,7 @@ def Main():
                     else:
                         InvalidMove()
                     MovingPiece.Draw()
-                MovingPiece = None
+                    MovingPiece = None
         Update(MovingPiece)
         pygame.display.update()
 
