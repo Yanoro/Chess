@@ -13,6 +13,25 @@ White = "White"
 Black = "Black"
 Turn = White
 
+def GetSurroundingTiles(Tile):
+        UpperRow = str(int(Tile[1]) + 1)
+        CurrentRow = Tile[1]
+        LowerRow = str(int(Tile[1]) - 1)
+        LeftColumn = chr(ord(Tile[0]) - 1)
+        CurrentColumn = Tile[0]
+        RightColumn = chr(ord(Tile[0]) + 1)
+        Movement = []
+        UpperTiles = LeftColumn + UpperRow, CurrentColumn + UpperRow, RightColumn + UpperRow
+        HorizontalTiles = LeftColumn + CurrentRow, RightColumn + CurrentRow
+        LowerTiles = LeftColumn + LowerRow, CurrentColumn + LowerRow, RightColumn + LowerRow
+        return UpperTiles + HorizontalTiles + LowerTiles
+
+
+def GetAllPossibleDirections(List):
+    FirstItem = List[0]
+    SecondItem = List[1]
+    return [[FirstItem, SecondItem], [-FirstItem, SecondItem], [FirstItem, -SecondItem], [-FirstItem, -SecondItem]]
+
 def GetPieceInsideTile(Tile):
     for Sprite in SpriteGroup:
         if Sprite.Tile == Tile:
@@ -87,44 +106,55 @@ class Piece(pygame.sprite.Sprite):
         pygame.draw.rect(screen, (255, 0, 0), self.Hitbox, 2)
         pygame.display.update()
 
-    def GetTilesInDirection(Horizontal_Direction, Vertical_Direction):
+    def NextTile(self, CurrentTile, Horizontal_Direction, Vertical_Direction):
+        NewColumn = chr(ord(CurrentTile[0]) + Horizontal_Direction)
+        NewRow = str(int(CurrentTile[1]) + Vertical_Direction)
+        return NewColumn + NewRow
+
+    def GetTilesInDirection(self, Horizontal_Direction, Vertical_Direction):
         Movements = []
-        CurrentTile = self.Tile
-        Column = self.Tile[0]
-        Row = self.Tile[1]
-        while self.IsTileStillValid(CurrentTile):
+        CurrentTile = self.NextTile(self.Tile, Horizontal_Direction, Vertical_Direction)
+        LastTile = False
+        while self.IsTileStillValid(CurrentTile) and not LastTile:
+            if OcuppiedTile(CurrentTile):
+                if not IsEnemyInside(CurrentTile, self.Color):
+                    break
+                LastTile = True
             Movements.append(CurrentTile)
-            Column = chr(ord(Column) + Horizontal_Direction)
-            Row = str(int(Row) + Vertical_Direction)
-            CurrentTile = Column + Row
+            CurrentTile = self.NextTile(CurrentTile, Horizontal_Direction, Vertical_Direction)
         return Movements
 
     def GetTilesInAllDirections(self, Directions):
         Tiles = []
         for Direction in Directions:
-            Tiles.append(GetTilesInDirection(Direction[0], Direction[1]))
+            TilesInDirection = self.GetTilesInDirection(Direction[0], Direction[1])
+            if TilesInDirection:
+                Tiles += TilesInDirection
         return Tiles
 
     def GetAllDiagonalPossibleMovements(self):
         PossibleMovements = []
-        Directions = self.GetAllPossibleDirections([1, 1])
+        Directions = GetAllPossibleDirections([1, 1])
         return self.GetTilesInAllDirections(Directions)
 
     def GetAllVerticalAndHorizontalPossibleMovements(self):
-        VerticalDirections = self.GetAllPossibleDirections([0, 1])
-        HorizontalDirections = self.GetAllPossibleDirections([1, 0])
-        Directions = VerticalDirections + HorizontalDirections
-        return self.GetTilesInAllDirections(Directions)
-
-    def GetAllPossibleDirections(self, List):
-        FirstItem = List[0]
-        SecondItem = List[1]
-        return [(FirstItem, SecondItem), (-FirstItem, SecondItem), (FirstItem, -SecondItem), (-FirstItem, -SecondItem)]
+        Directions = [[0, 1], [0, -1], [1, 0], [-1, 0]]
+        AllMovements = self.GetTilesInAllDirections(Directions)
+        if AllMovements:
+            return AllMovements
+        else:
+            return None
 
     def IsTileStillValid(self, Tile):
-        Column = Tile[0]
-        Row = int(Tile[1])                         #Doesn't take into account situations where the tile is ocuppied by an enemy
-        return ord(Column) >= ord("A") and ord(Column) <= ord("H") and Row >= 1 and Row <= 8 and not OcuppiedTile(Tile)
+        try:
+            Column = Tile[0]
+            Row = int(Tile[1])
+        except:                                      #RemoveThisTryBlock
+            return False                                            #Doesn't take into account situations where the tile is ocuppied by an enemy
+        return ord(Column) >= ord("A") and ord(Column) <= ord("H") and Row >= 1 and Row <= 8
+
+    def Move(self, DestinyTile):
+        self.Tile = DestinyTile
 
     def GetCurrentColumnAndRow(self):
         return self.Tile[0], self.Tile[1]
@@ -208,15 +238,13 @@ class Horse(Piece):
     def GetPossibleMoves(self):
         PossibleMovements = []
         CurrentColumn, CurrentRow = self.GetCurrentColumnAndRow()
-        CurrentRow = int(CurrentRow)
-        VerticalL = self.GetAllPossibleDirections([1, 2])
-        HorizontalL = self.GetAllPossibleDirections([2, 1])
-        AllMoves = [VerticalL, HorizontalL]
+        AllMoves = GetAllPossibleDirections([1, 2])
+        AllMoves += GetAllPossibleDirections([2, 1])
         for Movement in AllMoves:
             Column = chr(ord(CurrentColumn) + Movement[0])
-            Row =  str(CurrentRow + Movement[1])
+            Row =  str(int(CurrentRow) + Movement[1])
             Tile = Column + Row
-            if not OcuppiedTile[Tile] or IsEnemyInside(Tile, self.Color):
+            if self.IsTileStillValid(Tile) and (not OcuppiedTile(Tile) or IsEnemyInside(Tile, self.Color)):
                 PossibleMovements.append(Tile)
         return PossibleMovements
 
@@ -261,7 +289,11 @@ class Queen(Piece):
     def GetPossibleMoves(self):
         VerticalAndHorizontalMovements = self.GetAllVerticalAndHorizontalPossibleMovements()
         DiagonalMovements = self.GetAllDiagonalPossibleMovements()
-        return VerticalAndHorizontalMovements + DiagonalMovements
+        if DiagonalMovements and VerticalAndHorizontalMovements:
+            return VerticalAndHorizontalMovements + DiagonalMovements       #IMPROVE
+        elif DiagonalMovements:
+            return DiagonalMovements
+        return VerticalAndHorizontalMovements
 
     def ValidMove(self, Tiles):
         Horizontal_Movement, Vertical_Movement = GetMovement(self.Tile, Tiles[-1])
@@ -274,24 +306,11 @@ class King(Piece):
         super().__init__("King", "Pieces/{}_King.png".format(Color), StartingTile, Color)
         self.Check = False
 
-    def GetSurroundingTiles(self):
-        UpperRow = str(int(self.Tile[1]) + 1)
-        CurrentRow = self.Tile[1]
-        LowerRow = str(int(self.Tile[1]) - 1)
-        LeftColumn = chr(ord(self.Tile[0]) - 1)
-        CurrentColumn = self.Tile[0]
-        RightColumn = chr(ord(self.Tile[0]) + 1)
-        Movement = []
-        UpperTiles = LeftColumn + UpperRow, CurrentColumn + UpperRow, RightColumn + UpperRow
-        HorizontalTiles = LeftColumn + CurrentRow, RightColumn + CurrentRow
-        LowerTiles = LeftColumn + LowerRow, CurrentColumn + LowerRow, RightColumn + LowerRow
-        return UpperTiles + HorizontalTiles + LowerTiles
-
     def GetPossibleMoves(self):
-        SurroundingTiles = self.GetSurroundingTiles()
+        SurroundingTiles = GetSurroundingTiles(self.Tile)
         PossibleTiles = []
         for Tile in SurroundingTiles:
-            if self.IsTileStillValid(Tile):
+            if self.IsTileStillValid(Tile) and (not OcuppiedTile(Tile) or IsEnemyInside(Tile, self.Color)):       #The Not OcuppiedTile... Part is used several times changeit Later to A function
                 PossibleTiles.append(Tile)
         return PossibleTiles
 
